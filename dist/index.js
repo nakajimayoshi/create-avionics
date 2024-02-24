@@ -1,38 +1,22 @@
-import figlet from 'figlet';
-import prompts from 'prompts';
-import fs from 'fs';
-import { red, green } from 'kolorist';
-
-interface AvionicsProject {
-    name: string;
-    buildSystem: string;
-    multiInstrument: boolean;
-    instruments: string[];
-}
-
-interface PackageJson {
-    name: string;
-    version: string;
-    description?: string;
-    devDependencies: Record<string, string>;
-    scripts: Record<string, string>;
-    dependencies?: Record<string, string>;
-    [key: string]: any;
-}
-
-
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const figlet_1 = __importDefault(require("figlet"));
+const prompts_1 = __importDefault(require("prompts"));
+const fs_1 = __importDefault(require("fs"));
+const kolorist_1 = require("kolorist");
 function init() {
-    figlet('Create Avionics', async (err, data) => {
+    (0, figlet_1.default)('Create Avionics', async (err, data) => {
         if (err) {
             console.log('Something went wrong...');
             console.dir(err);
             return;
         }
-        
         console.log(data);
-    
         try {
-            const responses = await prompts([
+            const responses = await (0, prompts_1.default)([
                 {
                     type: 'text',
                     name: 'name',
@@ -43,8 +27,8 @@ function init() {
                     name: 'buildSystem',
                     message: 'What build system would you like to use?',
                     choices: [
-                        { title: red('Rollup'), value: 'rollup' },
-                        { title: green('Mach'), value: 'mach' },
+                        { title: (0, kolorist_1.red)('Rollup'), value: 'rollup' },
+                        { title: (0, kolorist_1.green)('Mach'), value: 'mach' },
                     ]
                 },
                 {
@@ -53,48 +37,37 @@ function init() {
                     message: 'Will your project have multiple instruments?'
                 },
                 {
-                    type: (prev: boolean) =>  prev ? 'list' : null,
+                    type: (prev) => prev ? 'list' : null,
                     name: 'instruments',
                     message: 'Type instrument names separated by commas, e.g. "Instrument1, Instrument2, Instrument3...',
                     separator: ',',
-                 }
-            ])
-
-            const project: AvionicsProject = {
+                    initial: '',
+                    format: (value) => console.log(value)
+                }
+            ]);
+            const project = {
                 name: responses.name.trim(),
                 buildSystem: responses.buildSystem,
-                multiInstrument: responses.multiInstrument,
-                instruments: responses.instruments
-            }
-
+                multiInstrument: responses.multiInstrument
+            };
             await createProject(project);
-
-        } catch (error) {
+        }
+        catch (error) {
             console.log(error);
         }
-
-
-    
-
-
     });
 }
-
-
-async function createProject(project: AvionicsProject) {
+async function createProject(project) {
     console.log('Creating project...');
     const builder = new AvionicsProjectFactory(project);
-
     builder.createProject();
 }
-
 class AvionicsProjectFactory {
-    private projectName: string;
-    private buildSystem: string;
-    private multiInstrument: boolean;
-    private instruments: string[] = []
-
-    private readonly tsConfig = {
+    projectName;
+    buildSystem;
+    multiInstrument;
+    instruments;
+    tsConfig = {
         "compilerOptions": {
             "incremental": true,
             "target": "es2017",
@@ -109,52 +82,40 @@ class AvionicsProjectFactory {
             "jsxFragmentFactory": "FSComponent.Fragment",
             "jsx": "react"
         }
-    }
-
-    constructor(project: AvionicsProject) {
+    };
+    constructor(project) {
         this.projectName = project.name;
         this.buildSystem = project.buildSystem;
         this.multiInstrument = project.multiInstrument;
         this.instruments = project.instruments;
-
-        console.log('INSTRUMENTS: ', this.instruments)
+        console.log('INSTRUMENTS: ', this.instruments);
     }
-
-    private async generateHtml(instrumentName: string) {
-        const template = fs.readFileSync('templates/template.html', 'utf-8');
-
+    async generateHtml(instrumentName) {
+        const template = fs_1.default.readFileSync('templates/template.html', 'utf-8');
         const regex = /{{ instrumentName }}/g;
         const body = template.replace(regex, instrumentName);
-
-        fs.writeFileSync(`${this.projectName}/${instrumentName}.html`, body);
+        fs_1.default.writeFileSync(`${this.projectName}/${instrumentName}.html`, body);
     }
-
     createProject() {
         if (this.multiInstrument) {
             this.createMultiInstrumentProject();
-        } else {
+        }
+        else {
             this.createSingleInstrumentProject();
         }
     }
-
-
-    private createProjectFolder() {
-        fs.mkdirSync(this.projectName);
+    createProjectFolder() {
+        fs_1.default.mkdirSync(this.projectName);
     }
-
-    private createReadme() {
-        fs.writeFileSync(`${this.projectName}/README.md`, `# ${this.projectName}`);
+    createReadme() {
+        fs_1.default.writeFileSync(`${this.projectName}/README.md`, `# ${this.projectName}`);
     }
-
-    private generateSrcFiles() {
-        fs.mkdirSync(`${this.projectName}/src`);
-
-        const componentTemplate = fs.readFileSync('templates/Component.tsx', 'utf-8');
-
+    generateSrcFiles() {
+        fs_1.default.mkdirSync(`${this.projectName}/src`);
+        const componentTemplate = fs_1.default.readFileSync('templates/Component.tsx', 'utf-8');
     }
-
-    private createPackageJson() {
-        const packageJson: PackageJson = {
+    createPackageJson() {
+        const packageJson = {
             name: this.projectName,
             version: '1.0.0',
             description: '',
@@ -170,8 +131,7 @@ class AvionicsProjectFactory {
                 "@microsoft/msfs-sdk": "^0.1.0",
                 "@microsoft/msfs-types": "^0.1.0",
             },
-        }
-
+        };
         if (this.buildSystem === 'rollup') {
             packageJson.devDependencies['rollup'] = '^2.79.1';
             packageJson.devDependencies['rollup-plugin-import-css'] = '^3.5.0';
@@ -180,45 +140,27 @@ class AvionicsProjectFactory {
             packageJson.devDependencies['tslib'] = '^2.6.2';
             packageJson.scripts['build'] = 'npx rollup -c';
         }
-
-        fs.writeFileSync(`${this.projectName}/package.json`, JSON.stringify(packageJson, null, 2));
+        fs_1.default.writeFileSync(`${this.projectName}/package.json`, JSON.stringify(packageJson, null, 2));
     }
-
-    private generateRollupConfig() {
-        const template = fs.readFileSync('templates/rollup.config.js', 'utf-8');
-
+    generateRollupConfig() {
+        const template = fs_1.default.readFileSync('templates/rollup.config.js', 'utf-8');
         const regex = /{{ projectName }}/g;
         const body = template.replace(regex, this.projectName);
-
-        fs.writeFileSync(`${this.projectName}/rollup.config.js`, body);
+        fs_1.default.writeFileSync(`${this.projectName}/rollup.config.js`, body);
     }
-
-    private createSingleInstrumentProject() {
+    createSingleInstrumentProject() {
         this.createProjectFolder();
         this.createReadme();
         this.generateSrcFiles();
         this.createPackageJson();
         this.generateHtml(this.projectName);
         this.generateRollupConfig();
-
-        fs.writeFileSync(`${this.projectName}/tsconfig.json`, JSON.stringify(this.tsConfig, null, 2));
-     
+        fs_1.default.writeFileSync(`${this.projectName}/tsconfig.json`, JSON.stringify(this.tsConfig, null, 2));
     }
-
-    private createMultiInstrumentProject() {
-        // this.createProjectFolder();
-        // this.createReadme();
-        // this.createSrcFolder();
-        // this.createPackageJson();
-        
-        const isInstrumentsEmpty = this.instruments[0] === ''
-        
-        if (isInstrumentsEmpty) {
-            console.error('No instrument list was provided')
-            process.exit(1);
-        }
-
-     }
+    createMultiInstrumentProject() {
+        if (!this.instruments)
+            return;
+        console.log(this.instruments);
+    }
 }
-
 init();
