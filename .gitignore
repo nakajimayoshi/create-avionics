@@ -1,2 +1,9 @@
+
+# dependencies
 node_modules
+
+# production build
 /dist/
+
+# ide config
+/.idea/
