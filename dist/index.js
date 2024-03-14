@@ -112,7 +112,7 @@ class AvionicsProjectFactory {
     }
     generateSrcFiles() {
         fs_1.default.mkdirSync(`${this.projectName}/src`);
-        const componentTemplate = fs_1.default.readFileSync('templates/Component.tsx', 'utf-8');
+        const componentTemplate = fs_1.default.readFileSync('templates/Component.ts', 'utf-8');
     }
     createPackageJson() {
         const packageJson = {

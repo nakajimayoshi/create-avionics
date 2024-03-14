@@ -2,11 +2,20 @@ import figlet from 'figlet';
 import prompts from 'prompts';
 import fs from 'fs';
 import { red, green } from 'kolorist';
+import {instrumentBody} from "../templates/Instrument";
+import {componentBody} from "../templates/Component";
+import {toKebabCase, toPascalCase} from "./utils";
 
 interface AvionicsProject {
     name: string;
     buildSystem: string;
-    multiInstrument: boolean;
+    instruments: string[];
+}
+
+interface MachConfig {
+    packageName: string;
+    packageDir: string;
+    plugins: string[];
     instruments: string[];
 }
 
@@ -48,14 +57,9 @@ function init() {
                     ]
                 },
                 {
-                    type: 'confirm',
-                    name: 'multiInstrument',
-                    message: 'Will your project have multiple instruments?'
-                },
-                {
                     type: (prev: boolean) =>  prev ? 'list' : null,
                     name: 'instruments',
-                    message: 'Type instrument names separated by commas, e.g. "Instrument1, Instrument2, Instrument3...',
+                    message: 'Type instrument names separated by commas, e.g. Instrument1, Instrument2, Instrument3...',
                     separator: ',',
                  }
             ])
@@ -63,7 +67,6 @@ function init() {
             const project: AvionicsProject = {
                 name: responses.name.trim(),
                 buildSystem: responses.buildSystem,
-                multiInstrument: responses.multiInstrument,
                 instruments: responses.instruments
             }
 
@@ -72,10 +75,6 @@ function init() {
         } catch (error) {
             console.log(error);
         }
-
-
-    
-
 
     });
 }
@@ -89,10 +88,9 @@ async function createProject(project: AvionicsProject) {
 }
 
 class AvionicsProjectFactory {
-    private projectName: string;
-    private buildSystem: string;
-    private multiInstrument: boolean;
-    private instruments: string[] = []
+    private readonly projectName: string;
+    private readonly buildSystem: string;
+    private readonly instruments: string[] = []
 
     private readonly tsConfig = {
         "compilerOptions": {
@@ -114,7 +112,6 @@ class AvionicsProjectFactory {
     constructor(project: AvionicsProject) {
         this.projectName = project.name;
         this.buildSystem = project.buildSystem;
-        this.multiInstrument = project.multiInstrument;
         this.instruments = project.instruments;
 
         console.log('INSTRUMENTS: ', this.instruments)
@@ -129,12 +126,15 @@ class AvionicsProjectFactory {
         fs.writeFileSync(`${this.projectName}/${instrumentName}.html`, body);
     }
 
-    createProject() {
-        if (this.multiInstrument) {
-            this.createMultiInstrumentProject();
-        } else {
-            this.createSingleInstrumentProject();
-        }
+    async createProject() {
+        this.createProjectFolder();
+        this.createReadme();
+        this.generateSrcFiles();
+        this.createPackageJson();
+        await this.generateHtml(this.projectName);
+        this.generateBundlerConfig();
+        fs.writeFileSync(`${this.projectName}/tsconfig.json`, JSON.stringify(this.tsConfig, null, 2));
+
     }
 
 
@@ -149,20 +149,48 @@ class AvionicsProjectFactory {
     private generateSrcFiles() {
         fs.mkdirSync(`${this.projectName}/src`);
 
-        const componentTemplate = fs.readFileSync('templates/Component.tsx', 'utf-8');
+        this.instruments.forEach((instrument) => {
+            const instrumentDir = `${this.projectName}/src/${instrument}`;
+
+            fs.mkdirSync(instrumentDir);
+
+
+            const instrumentName = instrument.trim();
+            const componentName = `${instrumentName}-component`;
+
+            const newComponentBody = componentBody
+                .replace(/{{ componentNameUpper }}/g, componentName.toUpperCase())
+                .replace(/{{ componentNamePascal }}/g, toPascalCase(componentName))
+                .replace(/{{ componentNameKebab }}/g, toKebabCase(componentName))
+                .trim();
+
+
+            const newInstrumentBody = instrumentBody
+                .replace(/{{ componentNamePascal }}/g, toPascalCase(componentName))
+                .replace(/{{ projectNameLower }}/g, this.projectName.toLowerCase())
+                .replace(/{{ instrumentNameLower }}/g, instrumentName.toLowerCase())
+                .replace(/{{ projectNameUpper }}/g, this.projectName.toUpperCase())
+                .replace(/{{ instrumentNameUpper }}/g, instrumentName.toUpperCase())
+                .trim();
+
+            fs.writeFileSync(`${instrumentDir}/Component.tsx`, newComponentBody);
+            fs.writeFileSync(`${instrumentDir}/${instrument.toUpperCase()}.tsx`, newInstrumentBody);
+
+            const cssTemplate = fs.readFileSync('templates/template.css', 'utf-8')
+                .replace(/{{ componentName }}/g, componentName);
+
+            fs.writeFileSync(`${instrumentDir}/${instrument}.css`, cssTemplate);
+        })
 
     }
 
     private createPackageJson() {
         const packageJson: PackageJson = {
             name: this.projectName,
-            version: '1.0.0',
+            version: '0.1.0',
             description: '',
-            main: 'index.js',
             scripts: {
                 test: 'echo "Error: no test specified" && exit 1',
-                build: 'tsc',
-                start: 'tsc -w',
             },
             keywords: [],
             devDependencies: {
@@ -181,44 +209,65 @@ class AvionicsProjectFactory {
             packageJson.scripts['build'] = 'npx rollup -c';
         }
 
+        if (this.buildSystem === 'mach') {
+            packageJson.devDependencies['@synaptic-simulations/mach'] = '^1.0.0';
+            packageJson.scripts['dev'] = 'mach dev';
+            packageJson.scripts['build'] = 'mach build';
+        }
+
         fs.writeFileSync(`${this.projectName}/package.json`, JSON.stringify(packageJson, null, 2));
     }
 
-    private generateRollupConfig() {
-        const template = fs.readFileSync('templates/rollup.config.js', 'utf-8');
+    private generateBundlerConfig() {
 
-        const regex = /{{ projectName }}/g;
-        const body = template.replace(regex, this.projectName);
+        if (this.buildSystem === 'rollup') {
+            const template = fs.readFileSync('templates/rollup.config.js', 'utf-8');
 
-        fs.writeFileSync(`${this.projectName}/rollup.config.js`, body);
-    }
+            const regex = /{{ projectName }}/g;
+            const body = template.replace(regex, this.projectName);
 
-    private createSingleInstrumentProject() {
-        this.createProjectFolder();
-        this.createReadme();
-        this.generateSrcFiles();
-        this.createPackageJson();
-        this.generateHtml(this.projectName);
-        this.generateRollupConfig();
-
-        fs.writeFileSync(`${this.projectName}/tsconfig.json`, JSON.stringify(this.tsConfig, null, 2));
-     
-    }
-
-    private createMultiInstrumentProject() {
-        // this.createProjectFolder();
-        // this.createReadme();
-        // this.createSrcFolder();
-        // this.createPackageJson();
-        
-        const isInstrumentsEmpty = this.instruments[0] === ''
-        
-        if (isInstrumentsEmpty) {
-            console.error('No instrument list was provided')
-            process.exit(1);
+            fs.writeFileSync(`${this.projectName}/rollup.config.js`, body);
         }
 
-     }
+        if (this.buildSystem === 'mach') {
+            const template = fs.readFileSync('templates/mach.config.js', 'utf-8');
+
+            const projectName = /{{ projectName }}/g;
+
+            const machConfig: MachConfig = {
+                packageName: `Airliners/${this.projectName}`,
+                packageDir: `dist/${this.projectName}`,
+                plugins: [],
+                instruments: []
+            }
+
+            machConfig.instruments = this.instruments.map((instrument) => {
+                return this.msfsAvionicsInstrumentString(instrument);
+            })
+
+            const body = template
+                .replace(projectName, this.projectName)
+                .replace('{{ machConfig }}', this.serializeMachConfigToJSON(machConfig));
+
+
+            fs.writeFileSync(`${this.projectName}/mach.config.js`, body);
+        }
+    }
+
+    private msfsAvionicsInstrumentString(instrumentName: string): string {
+        return `msfsAvionicsInstrument('${instrumentName}')`
+    }
+
+    private serializeMachConfigToJSON(config: MachConfig): string {
+        const entries = Object.entries(config).map(([key, value]) => {
+            const formattedValue = Array.isArray(value) ? `[${value.join(', ')}]` : JSON.stringify(value);
+            return `    ${key}: ${formattedValue}`;
+        });
+
+        return `{\n${entries.join(',\n')}\n}`;
+    }
+
+
 }
 
 init();
