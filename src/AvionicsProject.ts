@@ -93,7 +93,7 @@ export class AvionicsProjectFactory {
             .trim();
 
         fs.writeFileSync(`${instrumentDir}/Component.tsx`, newComponentBody);
-        fs.writeFileSync(`${instrumentDir}/${instrument.toUpperCase()}.tsx`, newInstrumentBody);
+        fs.writeFileSync(`${instrumentDir}/index.tsx`, newInstrumentBody);
 
         const cssTemplate = fs.readFileSync('templates/template.css', 'utf-8')
             .replace(/{{ componentName }}/g, componentName);
@@ -139,7 +139,7 @@ export class AvionicsProjectFactory {
 
         if (this.buildSystem === 'mach') {
             packageJson.devDependencies['@synaptic-simulations/mach'] = '^1.0.0';
-            packageJson.scripts['dev'] = 'mach dev';
+            packageJson.scripts['dev'] = 'mach watch';
             packageJson.scripts['build'] = 'mach build';
         }
 

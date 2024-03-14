@@ -1,8 +1,9 @@
 export const instrumentBody = `
 /// <reference types="@microsoft/msfs-types/Pages/VCockpit/Core/VCockpit" />
 
-import { FSComponent, BaseInstrument } from '@microsoft/msfs-sdk';
+import { FSComponent } from '@microsoft/msfs-sdk';
 import { {{ componentNamePascal }} } from './Component';
+import './{{ instrumentNameLower }}.css';
 
 class {{ instrumentNameUpper }} extends BaseInstrument {
   get templateID(): string {
