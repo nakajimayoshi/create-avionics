@@ -1,7 +1,8 @@
 import figlet from 'figlet';
 import prompts from 'prompts';
-import {red, green, lightGreen} from 'kolorist';
-import {AvionicsProject, AvionicsProjectFactory} from "./AvionicsProject";
+import {red, green, lightGreen, lightRed, lightCyan, lightBlue} from 'kolorist';
+import {AvionicsProjectConfig} from "./AvionicsProjectConfig";
+import {AvionicsProject} from "./AvionicsProject";
 
 function init() {
     figlet('Create Avionics', async (err, data) => {
@@ -23,28 +24,38 @@ function init() {
                 {
                     type: 'select',
                     name: 'buildSystem',
-                    message: 'What build system would you like to use?',
+                    message: 'Which bundler would you like to use?',
                     choices: [
-                        { title: red('Rollup'), value: 'rollup' },
-                        { title: green('Mach'), value: 'mach' },
+                        { title: lightRed('Rollup'), value: 'rollup' },
+                        { title: lightBlue('Mach'), value: 'mach' },
                     ]
                 },
                 {
-                    type: (prev: boolean) =>  prev ? 'list' : null,
+                    type: 'select',
+                    name: 'packageManager',
+                    message: 'What package manager would you like to use?',
+                    choices: [
+                        { title: lightRed('npm'), value: 'npm' },
+                        { title: lightGreen('pnpm'), value: 'pnpm' },
+                        { title: lightCyan('yarn'), value: 'yarn' },
+                    ]
+                },
+                {
+                    type: 'list',
                     name: 'instruments',
                     message: 'Type instrument names separated by commas, e.g. Instrument1, Instrument2, Instrument3...',
                     separator: ',',
                  }
             ])
 
-            const project: AvionicsProject = {
+            const project: AvionicsProjectConfig = {
                 name: responses.name.trim(),
                 buildSystem: responses.buildSystem,
                 instruments: responses.instruments
             }
 
             console.log('Creating project...');
-            const projectFactory = new AvionicsProjectFactory(project);
+            const projectFactory = new AvionicsProject(project);
 
             await projectFactory.createProject();
 

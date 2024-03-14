@@ -2,19 +2,15 @@ import fs from "fs";
 import {componentBody} from "../templates/Component";
 import {toKebabCase, toPascalCase} from "./utils";
 import {instrumentBody} from "../templates/Instrument";
-import {MachConfig} from "./machConfig";
 import {PackageJson} from "./packageJson";
+import {MachConfig} from "./machConfig";
+import {AvionicsProjectConfig} from "./AvionicsProjectConfig";
 
-export interface AvionicsProject {
-    name: string;
-    buildSystem: string;
-    instruments: string[];
-}
-
-export class AvionicsProjectFactory {
+export class AvionicsProject {
     private readonly projectName: string;
     private readonly buildSystem: string;
     private readonly instruments: string[] = []
+    private readonly packageManager: string;
 
     private readonly tsConfig = {
         "compilerOptions": {
@@ -33,10 +29,11 @@ export class AvionicsProjectFactory {
         }
     }
 
-    constructor(project: AvionicsProject) {
+    constructor(project: AvionicsProjectConfig) {
         this.projectName = project.name;
         this.buildSystem = project.buildSystem;
         this.instruments = project.instruments;
+        this.packageManager = project.packageManager || 'npm';
 
         console.log('INSTRUMENTS: ', this.instruments)
     }
